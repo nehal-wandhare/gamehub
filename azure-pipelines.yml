@@ -38,16 +38,25 @@ stages:
     - checkout: self
 
     - script: |
+        echo "Installing Snyk..."
+        npm install -g snyk || true
+
+        echo "Authenticating..."
+        npx snyk auth $(SNYK_TOKEN)
+
         echo "Scanning frontend..."
         cd frontend
         npm install
-        npx snyk auth $(SNYK_TOKEN)
         npx snyk test --severity-threshold=high > ../snyk-frontend.txt
+        npx snyk monitor
+        cd ..
 
         echo "Scanning backend..."
-        cd ../backend
+        cd backend
         npm install
         npx snyk test --severity-threshold=high > ../snyk-backend.txt
+        npx snyk monitor
+        cd ..
       displayName: Run Snyk Scan
 
     - task: PublishBuildArtifacts@1

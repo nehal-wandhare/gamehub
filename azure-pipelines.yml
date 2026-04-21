@@ -19,17 +19,27 @@ stages:
     - checkout: self
 
     - script: |
+        echo "Installing dependencies..."
         cd frontend
         npm install
+
+        echo "Running tests with coverage..."
         CI=true npm test -- --coverage --watchAll=false
       displayName: Run Tests
 
+    # 🔍 Debug step (important for first run)
+    - script: |
+        echo "Checking coverage files..."
+        ls -la frontend/coverage
+      displayName: Debug Coverage Files
+
+    # ✅ Publish coverage (final correct)
     - task: PublishCodeCoverageResults@1
       inputs:
         codeCoverageTool: 'Cobertura'
         summaryFileLocation: 'frontend/coverage/cobertura-coverage.xml'
         reportDirectory: 'frontend/coverage'
-        failIfCoverageEmpty: false
+        failIfCoverageEmpty: true
 
 # -------------------------
 # 🔍 SONAR

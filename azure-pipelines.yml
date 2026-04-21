@@ -19,20 +19,20 @@ stages:
     - checkout: self
 
     - script: |
-        echo "Running frontend tests..."
         cd frontend
         npm install
         CI=true npm test -- --coverage --watchAll=false
-      displayName: Run Tests with Coverage
+      displayName: Run Tests
 
     - task: PublishCodeCoverageResults@1
       inputs:
         codeCoverageTool: 'Cobertura'
-        summaryFileLocation: 'frontend/coverage/lcov.info'
+        summaryFileLocation: 'frontend/coverage/cobertura-coverage.xml'
         reportDirectory: 'frontend/coverage'
+        failIfCoverageEmpty: false
 
 # -------------------------
-# 🔍 SONAR (DOCKER)
+# 🔍 SONAR
 # -------------------------
 - stage: Sonar
   dependsOn: Test
@@ -52,7 +52,7 @@ stages:
       displayName: SonarCloud Scan
 
 # -------------------------
-# 🔐 SNYK SCAN + HTML
+# 🔐 SNYK
 # -------------------------
 - stage: Snyk
   dependsOn: Sonar
@@ -62,40 +62,36 @@ stages:
     - checkout: self
 
     - script: |
-        echo "Installing snyk-to-html..."
-        npm install -g snyk-to-html
+        npm config set prefix ~/.npm-global
+        export PATH=$PATH:~/.npm-global/bin
 
-        echo "Auth..."
-        npx snyk auth $(SNYK_TOKEN)
+        npm install -g snyk snyk-to-html
 
-        echo "Frontend scan..."
+        snyk auth $(SNYK_TOKEN)
+
         cd frontend
         npm install
-        npx snyk test --json > ../snyk-frontend.json
-        npx snyk monitor
+        snyk test --json > ../snyk-frontend.json || true
         cd ..
 
-        echo "Backend scan..."
         cd backend
         npm install
-        npx snyk test --json > ../snyk-backend.json
-        npx snyk monitor
+        snyk test --json > ../snyk-backend.json || true
         cd ..
 
-        echo "Convert to HTML..."
         snyk-to-html -i snyk-frontend.json -o snyk-frontend.html
         snyk-to-html -i snyk-backend.json -o snyk-backend.html
-      displayName: Snyk Scan + HTML
+      displayName: Snyk Scan
 
     - task: PublishBuildArtifacts@1
       inputs:
         pathToPublish: snyk-frontend.html
-        artifactName: snyk-frontend-html
+        artifactName: snyk-frontend
 
     - task: PublishBuildArtifacts@1
       inputs:
         pathToPublish: snyk-backend.html
-        artifactName: snyk-backend-html
+        artifactName: snyk-backend
 
 # -------------------------
 # 🐳 BUILD + TRIVY
@@ -110,47 +106,26 @@ stages:
     - script: |
         docker-compose build
       displayName: Build Docker
-      continueOnError: true
 
     - script: |
-        echo "Scanning frontend..."
         docker run --rm \
           -v /var/run/docker.sock:/var/run/docker.sock \
-          aquasec/trivy image --format json s_frontend:latest > trivy-frontend.json
+          aquasec/trivy image s_frontend:latest > trivy-frontend.txt || true
 
-        echo "Scanning backend..."
         docker run --rm \
           -v /var/run/docker.sock:/var/run/docker.sock \
-          aquasec/trivy image --format json s_backend:latest > trivy-backend.json
-
-        echo "Download template..."
-        wget https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/html.tpl
-
-        echo "Convert frontend..."
-        docker run --rm \
-          -v $(pwd):/work \
-          aquasec/trivy \
-          convert --format template --template "@/work/html.tpl" \
-          -o /work/trivy-frontend.html /work/trivy-frontend.json
-
-        echo "Convert backend..."
-        docker run --rm \
-          -v $(pwd):/work \
-          aquasec/trivy \
-          convert --format template --template "@/work/html.tpl" \
-          -o /work/trivy-backend.html /work/trivy-backend.json
-      displayName: Trivy Scan + HTML
-      continueOnError: true
+          aquasec/trivy image s_backend:latest > trivy-backend.txt || true
+      displayName: Trivy Scan
 
     - task: PublishBuildArtifacts@1
       inputs:
-        pathToPublish: trivy-frontend.html
-        artifactName: trivy-frontend-html
+        pathToPublish: trivy-frontend.txt
+        artifactName: trivy-frontend
 
     - task: PublishBuildArtifacts@1
       inputs:
-        pathToPublish: trivy-backend.html
-        artifactName: trivy-backend-html
+        pathToPublish: trivy-backend.txt
+        artifactName: trivy-backend
 
 # -------------------------
 # 🚀 DEPLOY

@@ -38,9 +38,9 @@ stages:
     - checkout: self
 
     - script: |
-        npm install -g snyk
-        snyk auth $(SNYK_TOKEN)
-        snyk test --severity-threshold=high > snyk-report.txt
+        npm install
+        npx snyk auth $(SNYK_TOKEN)
+        npx snyk test --severity-threshold=high > snyk-report.txt
       displayName: Run Snyk Scan
 
     - task: PublishBuildArtifacts@1

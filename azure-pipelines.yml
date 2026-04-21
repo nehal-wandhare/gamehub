@@ -86,24 +86,30 @@ stages:
     - script: |
         echo "Scanning frontend..."
         docker run --rm \
-        -v /var/run/docker.sock:/var/run/docker.sock \
-        aquasec/trivy image --format json s_frontend:latest > trivy-frontend.json
+          -v /var/run/docker.sock:/var/run/docker.sock \
+          aquasec/trivy image --format json s_frontend:latest > trivy-frontend.json
 
         echo "Scanning backend..."
         docker run --rm \
-        -v /var/run/docker.sock:/var/run/docker.sock \
-        aquasec/trivy image --format json s_backend:latest > trivy-backend.json
+          -v /var/run/docker.sock:/var/run/docker.sock \
+          aquasec/trivy image --format json s_backend:latest > trivy-backend.json
 
-        echo "Convert to HTML..."
-        docker run --rm \
-        -v $(pwd):/root \
-        aquasec/trivy convert --format html \
-        -o /root/trivy-frontend.html /root/trivy-frontend.json
+        echo "Download template..."
+        wget https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/html.tpl
 
+        echo "Convert frontend..."
         docker run --rm \
-        -v $(pwd):/root \
-        aquasec/trivy convert --format html \
-        -o /root/trivy-backend.html /root/trivy-backend.json
+          -v $(pwd):/work \
+          aquasec/trivy \
+          convert --format template --template "@/work/html.tpl" \
+          -o /work/trivy-frontend.html /work/trivy-frontend.json
+
+        echo "Convert backend..."
+        docker run --rm \
+          -v $(pwd):/work \
+          aquasec/trivy \
+          convert --format template --template "@/work/html.tpl" \
+          -o /work/trivy-backend.html /work/trivy-backend.json
       displayName: Trivy Scan + HTML
 
     - task: PublishBuildArtifacts@1

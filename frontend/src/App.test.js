@@ -1,11 +1,30 @@
 import { render, screen } from '@testing-library/react';
 import App from './App';
 
-test('renders app content', () => {
+// ✅ mock socket
+jest.mock('socket.io-client', () => {
+  return () => ({
+    on: jest.fn(),
+    emit: jest.fn(),
+  });
+});
+
+test('renders GameHub title', () => {
   render(<App />);
+  expect(screen.getByText(/gamehub click battle/i)).toBeInTheDocument();
+});
 
-  // 👇 change this text according to your UI
-  const element = screen.getByText(/game/i);
+test('renders input field', () => {
+  render(<App />);
+  expect(screen.getByPlaceholderText(/enter your name/i)).toBeInTheDocument();
+});
 
-  expect(element).toBeInTheDocument();
+test('renders start button', () => {
+  render(<App />);
+  expect(screen.getByText(/start game/i)).toBeInTheDocument();
+});
+
+test('renders leaderboard section', () => {
+  render(<App />);
+  expect(screen.getByText(/leaderboard/i)).toBeInTheDocument();
 });

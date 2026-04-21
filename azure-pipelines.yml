@@ -27,18 +27,19 @@ stages:
         CI=true npm test -- --coverage --watchAll=false
       displayName: Run Tests
 
-    # 🔍 Debug step (important for first run)
+    # 🔍 Debug (keep it)
     - script: |
         echo "Checking coverage files..."
         ls -la frontend/coverage
+        ls -la frontend/coverage/lcov-report || true
       displayName: Debug Coverage Files
 
-    # ✅ Publish coverage (final correct)
+    # ✅ IMPORTANT FIX (THIS WAS WRONG BEFORE)
     - task: PublishCodeCoverageResults@1
       inputs:
         codeCoverageTool: 'Cobertura'
         summaryFileLocation: 'frontend/coverage/cobertura-coverage.xml'
-        reportDirectory: 'frontend/coverage'
+        reportDirectory: 'frontend/coverage/lcov-report'
         failIfCoverageEmpty: true
 
 # -------------------------

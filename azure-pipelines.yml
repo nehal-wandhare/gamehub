@@ -56,10 +56,8 @@ stages:
         cd ..
 
         echo "Convert to HTML..."
-        npm install -g snyk-to-html
-
-        snyk-to-html -i snyk-frontend.json -o snyk-frontend.html
-        snyk-to-html -i snyk-backend.json -o snyk-backend.html
+        npx snyk-to-html -i snyk-frontend.json -o snyk-frontend.html
+        npx snyk-to-html -i snyk-backend.json -o snyk-backend.html
       displayName: Snyk Scan + HTML
 
     - task: PublishBuildArtifacts@1

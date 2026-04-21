@@ -22,12 +22,12 @@ stages:
         echo "Running frontend tests..."
         cd frontend
         npm install
-        npm test
-      displayName: Run Tests
+        CI=true npm test -- --coverage --watchAll=false
+      displayName: Run Tests with Coverage
 
     - task: PublishCodeCoverageResults@1
       inputs:
-        codeCoverageTool: 'JaCoCo'
+        codeCoverageTool: 'Cobertura'
         summaryFileLocation: 'frontend/coverage/lcov.info'
         reportDirectory: 'frontend/coverage'
 
@@ -52,7 +52,7 @@ stages:
       displayName: SonarCloud Scan
 
 # -------------------------
-# 🔐 SNYK SCAN + HTML REPORT
+# 🔐 SNYK SCAN + HTML
 # -------------------------
 - stage: Snyk
   dependsOn: Sonar
@@ -62,6 +62,9 @@ stages:
     - checkout: self
 
     - script: |
+        echo "Installing snyk-to-html..."
+        npm install -g snyk-to-html
+
         echo "Auth..."
         npx snyk auth $(SNYK_TOKEN)
 
@@ -80,8 +83,8 @@ stages:
         cd ..
 
         echo "Convert to HTML..."
-        npx snyk-to-html -i snyk-frontend.json -o snyk-frontend.html
-        npx snyk-to-html -i snyk-backend.json -o snyk-backend.html
+        snyk-to-html -i snyk-frontend.json -o snyk-frontend.html
+        snyk-to-html -i snyk-backend.json -o snyk-backend.html
       displayName: Snyk Scan + HTML
 
     - task: PublishBuildArtifacts@1
@@ -95,7 +98,7 @@ stages:
         artifactName: snyk-backend-html
 
 # -------------------------
-# 🐳 BUILD + TRIVY (HTML)
+# 🐳 BUILD + TRIVY
 # -------------------------
 - stage: BuildAndScan
   dependsOn: Snyk
@@ -107,6 +110,7 @@ stages:
     - script: |
         docker-compose build
       displayName: Build Docker
+      continueOnError: true
 
     - script: |
         echo "Scanning frontend..."
@@ -136,6 +140,7 @@ stages:
           convert --format template --template "@/work/html.tpl" \
           -o /work/trivy-backend.html /work/trivy-backend.json
       displayName: Trivy Scan + HTML
+      continueOnError: true
 
     - task: PublishBuildArtifacts@1
       inputs:

@@ -74,16 +74,26 @@ stages:
       displayName: Build Docker
 
     - script: |
+        echo "Scanning frontend image..."
         docker run --rm \
         -v /var/run/docker.sock:/var/run/docker.sock \
-        aquasec/trivy image frontend:latest > trivy-report.txt
+        aquasec/trivy image --scanners vuln s_frontend:latest > trivy-frontend.txt
+
+        echo "Scanning backend image..."
+        docker run --rm \
+        -v /var/run/docker.sock:/var/run/docker.sock \
+        aquasec/trivy image --scanners vuln s_backend:latest > trivy-backend.txt
       displayName: Trivy Scan
 
     - task: PublishBuildArtifacts@1
       inputs:
-        pathToPublish: trivy-report.txt
-        artifactName: trivy-report
+        pathToPublish: trivy-frontend.txt
+        artifactName: trivy-frontend
 
+    - task: PublishBuildArtifacts@1
+      inputs:
+        pathToPublish: trivy-backend.txt
+        artifactName: trivy-backend
 # -------------------------
 # 🚀 DEPLOY
 # -------------------------

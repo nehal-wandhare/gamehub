@@ -1,0 +1,39 @@
+trigger:
+- main
+
+pool:
+  name: my-agent   # ⚠️ same as your agent pool
+
+variables:
+  COMPOSE_FILE: docker-compose.yml
+
+stages:
+- stage: Deploy
+  displayName: Deploy App on EC2
+  jobs:
+  - job: DeployJob
+    displayName: Run Docker Compose
+    steps:
+
+    - checkout: self
+
+    - script: |
+        echo "Current directory:"
+        pwd
+        ls -la
+      displayName: Debug Files
+
+    - script: |
+        echo "Stopping old containers..."
+        docker-compose down || true
+      displayName: Stop old containers
+
+    - script: |
+        echo "Building and starting containers..."
+        docker-compose up -d --build
+      displayName: Build & Run Containers
+
+    - script: |
+        echo "Running containers:"
+        docker ps
+      displayName: Verify Containers

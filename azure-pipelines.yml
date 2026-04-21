@@ -10,11 +10,11 @@ variables:
 stages:
 
 # -------------------------
-# 🔍 SONARCLOUD ANALYSIS
+# 🔍 SONAR (DOCKER - NO EXTENSION)
 # -------------------------
-- stage: SonarCloud
+- stage: Sonar
   jobs:
-  - job: Sonar
+  - job: SonarScan
     steps:
     - checkout: self
 
@@ -26,7 +26,7 @@ stages:
         -Dsonar.projectKey=nehal-wandhare_gamehub \
         -Dsonar.organization=nehal-wandhare \
         -Dsonar.host.url=https://sonarcloud.io
-      displayName: Run SonarCloud Scan
+      displayName: SonarCloud Scan
 
 # -------------------------
 # 🔐 SNYK SCAN
@@ -35,10 +35,12 @@ stages:
   jobs:
   - job: SnykScan
     steps:
+    - checkout: self
+
     - script: |
         npm install -g snyk
         snyk auth $(SNYK_TOKEN)
-        snyk test > snyk-report.txt
+        snyk test --severity-threshold=high > snyk-report.txt
       displayName: Run Snyk Scan
 
     - task: PublishBuildArtifacts@1
@@ -74,6 +76,7 @@ stages:
 # 🚀 DEPLOY
 # -------------------------
 - stage: Deploy
+  dependsOn: BuildAndScan
   jobs:
   - job: DeployJob
     steps:

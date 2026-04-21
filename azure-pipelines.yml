@@ -10,9 +10,32 @@ variables:
 stages:
 
 # -------------------------
+# 🧪 TEST + COVERAGE
+# -------------------------
+- stage: Test
+  jobs:
+  - job: RunTests
+    steps:
+    - checkout: self
+
+    - script: |
+        echo "Running frontend tests..."
+        cd frontend
+        npm install
+        npm test
+      displayName: Run Tests
+
+    - task: PublishCodeCoverageResults@1
+      inputs:
+        codeCoverageTool: 'JaCoCo'
+        summaryFileLocation: 'frontend/coverage/lcov.info'
+        reportDirectory: 'frontend/coverage'
+
+# -------------------------
 # 🔍 SONAR (DOCKER)
 # -------------------------
 - stage: Sonar
+  dependsOn: Test
   jobs:
   - job: SonarScan
     steps:
@@ -32,6 +55,7 @@ stages:
 # 🔐 SNYK SCAN + HTML REPORT
 # -------------------------
 - stage: Snyk
+  dependsOn: Sonar
   jobs:
   - job: SnykScan
     steps:
@@ -74,6 +98,7 @@ stages:
 # 🐳 BUILD + TRIVY (HTML)
 # -------------------------
 - stage: BuildAndScan
+  dependsOn: Snyk
   jobs:
   - job: Build
     steps:

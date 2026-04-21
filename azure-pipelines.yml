@@ -2,38 +2,82 @@ trigger:
 - main
 
 pool:
-  name: my-agent   # ⚠️ same as your agent pool
+  name: my-agent
 
 variables:
-  COMPOSE_FILE: docker-compose.yml
+- group: devsecops-secrets
 
 stages:
-- stage: Deploy
-  displayName: Deploy App on EC2
-  jobs:
-  - job: DeployJob
-    displayName: Run Docker Compose
-    steps:
 
+# -------------------------
+# 🔍 SONARCLOUD ANALYSIS
+# -------------------------
+- stage: SonarCloud
+  jobs:
+  - job: Sonar
+    steps:
     - checkout: self
 
     - script: |
-        echo "Current directory:"
-        pwd
-        ls -la
-      displayName: Debug Files
+        docker run --rm \
+        -e SONAR_TOKEN=$(SONAR_TOKEN) \
+        -v $(pwd):/usr/src \
+        sonarsource/sonar-scanner-cli \
+        -Dsonar.projectKey=nehal-wandhare_gamehub \
+        -Dsonar.organization=nehal-wandhare \
+        -Dsonar.host.url=https://sonarcloud.io
+      displayName: Run SonarCloud Scan
+
+# -------------------------
+# 🔐 SNYK SCAN
+# -------------------------
+- stage: Snyk
+  jobs:
+  - job: SnykScan
+    steps:
+    - script: |
+        npm install -g snyk
+        snyk auth $(SNYK_TOKEN)
+        snyk test > snyk-report.txt
+      displayName: Run Snyk Scan
+
+    - task: PublishBuildArtifacts@1
+      inputs:
+        pathToPublish: snyk-report.txt
+        artifactName: snyk-report
+
+# -------------------------
+# 🐳 BUILD + TRIVY
+# -------------------------
+- stage: BuildAndScan
+  jobs:
+  - job: Build
+    steps:
+    - checkout: self
 
     - script: |
-        echo "Stopping old containers..."
+        docker-compose build
+      displayName: Build Docker
+
+    - script: |
+        docker run --rm \
+        -v /var/run/docker.sock:/var/run/docker.sock \
+        aquasec/trivy image frontend:latest > trivy-report.txt
+      displayName: Trivy Scan
+
+    - task: PublishBuildArtifacts@1
+      inputs:
+        pathToPublish: trivy-report.txt
+        artifactName: trivy-report
+
+# -------------------------
+# 🚀 DEPLOY
+# -------------------------
+- stage: Deploy
+  jobs:
+  - job: DeployJob
+    steps:
+    - script: |
         docker-compose down || true
-      displayName: Stop old containers
-
-    - script: |
-        echo "Building and starting containers..."
-        docker-compose up -d --build
-      displayName: Build & Run Containers
-
-    - script: |
-        echo "Running containers:"
-        docker ps
-      displayName: Verify Containers
+        docker-compose up -d
+      displayName: Deploy App
